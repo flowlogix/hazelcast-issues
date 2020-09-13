@@ -21,6 +21,9 @@ import com.hazelcast.config.JoinConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.TcpIpConfig;
 import com.hazelcast.core.Hazelcast;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cp.lock.FencedLock;
+import static com.hazelcast.spi.properties.ClusterProperty.JCACHE_PROVIDER_TYPE;
 import java.util.Objects;
 import java.util.Scanner;
 import javax.cache.Cache;
@@ -35,6 +38,7 @@ import javax.cache.spi.CachingProvider;
  */
 public class CacheTester {
     private CacheManager cacheManager;
+    private HazelcastInstance hzInst;
 
     public static void main(String[] args) {
         CacheTester tester = new CacheTester();
@@ -48,6 +52,7 @@ public class CacheTester {
 
     private Config getConfig() {
         Config config = new Config();
+//        config.setProperty(WAIT_SECONDS_BEFORE_JOIN_ASYNC.getName(), Boolean.FALSE.toString());
         NetworkConfig networkConfig = config.getNetworkConfig();
         networkConfig.setJoin(new JoinConfig().setTcpIpConfig(new TcpIpConfig().setEnabled(true)
                 .addMember("10.0.1.3:5701").addMember("10.0.1.3:5702").setConnectionTimeoutSeconds(1)));
@@ -55,10 +60,10 @@ public class CacheTester {
     }
 
     private void setup() {
-        System.setProperty("hazelcast.jcache.provider.type", "server");
-        String instanceName = Hazelcast.newHazelcastInstance(getConfig()).getName();
+        System.setProperty(JCACHE_PROVIDER_TYPE.getName(), "server");
+        hzInst = Hazelcast.newHazelcastInstance(getConfig());
         CachingProvider provider = Caching.getCachingProvider();
-        cacheManager = provider.getCacheManager(null, null, HazelcastCachingProvider.propertiesByInstanceName(instanceName));
+        cacheManager = provider.getCacheManager(null, null, HazelcastCachingProvider.propertiesByInstanceName(hzInst.getName()));
     }
 
     private void teardown() {
@@ -66,7 +71,7 @@ public class CacheTester {
     }
 
     private void help() {
-        System.out.println("<c> to create cache, <d> to destroy, <p> to print");
+        System.out.println("<c> to create cache, <d> to destroy, <p> to print, <l> to lock, <u> to unlock");
         System.out.println("blank to exit <h> for help, anything else to put in cache ...");
     }
 
@@ -91,6 +96,26 @@ public class CacheTester {
                             Cache<String, String> cache = cacheManager.getCache("myCache", String.class, String.class);
                             checkCreated(cache);
                             System.out.println("cache: " + cache.get("hello"));
+                            FencedLock lock = getLock();
+                            System.out.printf("Lock is %s\n", lock.isLocked() ? "Locked" : "Unlocked");
+                            break;
+                        }
+                        case "l": {
+                            FencedLock lock = getLock();
+                            System.out.printf("Locking ... was %s\n", lock.isLocked() ? "Locked" : "Unlocked");
+                            lock.lock();
+                            System.out.println("Locked");
+                            break;
+                        }
+                        case "u": {
+                            FencedLock lock = getLock();
+                            System.out.printf("Unlocking ... was %s\n", lock.isLocked() ? "Locked" : "Unlocked");
+                            if (lock.isLockedByCurrentThread()) {
+                                lock.unlock();
+                            }
+                            if (!lock.isLocked()) {
+                                System.out.println("Unlocked");
+                            }
                             break;
                         }
                         case "h": {
@@ -114,5 +139,9 @@ public class CacheTester {
 
     private void checkCreated(Cache<String, String> cache) {
         Objects.requireNonNull(cache, "Cache not created");
+    }
+
+    private FencedLock getLock() {
+        return hzInst.getCPSubsystem().getLock("my/lock");
     }
 }

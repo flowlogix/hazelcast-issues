@@ -21,34 +21,35 @@
             <version>4.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
-    
-    <profiles>  
-        <profile>  
-            <id>run</id>  
+
+    <profiles>
+        <profile>
+            <id>run</id>
             <properties>
                 <maven.surefire.debug>test</maven.surefire.debug>
                 <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=64093</exec.args>
             </properties>
-            <build>  
-                <plugins>  
-                    <plugin>  
-                        <groupId>org.codehaus.mojo</groupId>  
-                        <artifactId>exec-maven-plugin</artifactId>  
-                        <version>3.0.0</version>  
-                        <executions>  
-                            <execution>  
-                                <phase>test</phase>  
-                                <goals>  
-                                    <goal>java</goal>  
-                                </goals>  
-                                <configuration>  
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
                                     <mainClass>com.flowlogix.hazelcast.cachetester.CacheTester</mainClass>
-                                </configuration>  
-                            </execution>  
-                        </executions>  
-                    </plugin>  
-                </plugins>  
-            </build>  
-        </profile>  
-    </profiles>  
+                                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
