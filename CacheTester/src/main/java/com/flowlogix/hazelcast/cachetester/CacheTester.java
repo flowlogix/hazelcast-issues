@@ -17,9 +17,7 @@ package com.flowlogix.hazelcast.cachetester;
 
 import com.hazelcast.cache.HazelcastCachingProvider;
 import com.hazelcast.config.Config;
-import com.hazelcast.config.JoinConfig;
 import com.hazelcast.config.NetworkConfig;
-import com.hazelcast.config.TcpIpConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
@@ -54,8 +52,8 @@ public class CacheTester {
         Config config = new Config();
 //        config.setProperty(WAIT_SECONDS_BEFORE_JOIN_ASYNC.getName(), Boolean.FALSE.toString());
         NetworkConfig networkConfig = config.getNetworkConfig();
-        networkConfig.setJoin(new JoinConfig().setTcpIpConfig(new TcpIpConfig().setEnabled(true)
-                .addMember("10.0.1.3:5701").addMember("10.0.1.3:5702").setConnectionTimeoutSeconds(1)));
+//        networkConfig.setJoin(new JoinConfig().setTcpIpConfig(new TcpIpConfig().setEnabled(true)
+//                .addMember("10.0.1.2:5701").addMember("10.0.1.2:5702").setConnectionTimeoutSeconds(1)));
         return config;
     }
 
