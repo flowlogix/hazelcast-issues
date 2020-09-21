@@ -32,6 +32,7 @@
         <profile>
             <id>run</id>
             <properties>
+                <maven.test.skip>true</maven.test.skip>
                 <maven.surefire.debug>test</maven.surefire.debug>
                 <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=64093</exec.args>
             </properties>
