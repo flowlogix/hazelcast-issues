@@ -64,7 +64,7 @@ public class CacheTester {
         config.setProperty(HEARTBEAT_INTERVAL_SECONDS.getName(), "1");
         config.setProperty(MERGE_FIRST_RUN_DELAY_SECONDS.getName(), "5");
         config.setProperty(MERGE_NEXT_RUN_DELAY_SECONDS.getName(), "5");
-        config.setProperty(WAIT_SECONDS_BEFORE_JOIN.getName(), "0");
+        config.setProperty(WAIT_SECONDS_BEFORE_JOIN.getName(), "1");
         config.setProperty(MAX_JOIN_SECONDS.getName(), "5");
 
         config.getCPSubsystemConfig().addLockConfig(new FencedLockConfig("my/lock").disableReentrancy());
@@ -72,6 +72,7 @@ public class CacheTester {
         NetworkConfig networkConfig = config.getNetworkConfig();
         networkConfig.getJoin().getMulticastConfig().setEnabled(false);
 
+        config.setProperty("hazelcast.discovery.enabled", "true");
         networkConfig.getJoin().getDiscoveryConfig().setDiscoveryServiceProvider(MyDiscoveryService::new);
 //        networkConfig.setJoin(new JoinConfig().setTcpIpConfig(new TcpIpConfig().setEnabled(true)
 //                .addMember("127.0.0.1:5701").addMember("127.0.0.1:5702").addMember("127.0.0.1:5703").setConnectionTimeoutSeconds(1)));
