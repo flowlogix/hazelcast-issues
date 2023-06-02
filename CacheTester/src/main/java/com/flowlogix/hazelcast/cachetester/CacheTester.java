@@ -64,6 +64,8 @@ public class CacheTester {
         config.setProperty(HEARTBEAT_INTERVAL_SECONDS.getName(), "1");
         config.setProperty(MERGE_FIRST_RUN_DELAY_SECONDS.getName(), "5");
         config.setProperty(MERGE_NEXT_RUN_DELAY_SECONDS.getName(), "5");
+
+        // change below to zero to demostrate https://github.com/hazelcast/hazelcast/issues/17586
         config.setProperty(WAIT_SECONDS_BEFORE_JOIN.getName(), "1");
         config.setProperty(MAX_JOIN_SECONDS.getName(), "5");
 
