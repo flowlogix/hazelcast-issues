@@ -22,13 +22,6 @@ import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
-import static com.hazelcast.spi.properties.ClusterProperty.HEARTBEAT_INTERVAL_SECONDS;
-import static com.hazelcast.spi.properties.ClusterProperty.JCACHE_PROVIDER_TYPE;
-import static com.hazelcast.spi.properties.ClusterProperty.MAX_JOIN_SECONDS;
-import static com.hazelcast.spi.properties.ClusterProperty.MAX_NO_HEARTBEAT_SECONDS;
-import static com.hazelcast.spi.properties.ClusterProperty.MERGE_FIRST_RUN_DELAY_SECONDS;
-import static com.hazelcast.spi.properties.ClusterProperty.MERGE_NEXT_RUN_DELAY_SECONDS;
-import static com.hazelcast.spi.properties.ClusterProperty.WAIT_SECONDS_BEFORE_JOIN;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Scanner;
@@ -38,6 +31,15 @@ import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.spi.CachingProvider;
+import static com.hazelcast.spi.properties.ClusterProperty.DISCOVERY_SPI_ENABLED;
+import static com.hazelcast.spi.properties.ClusterProperty.HEARTBEAT_INTERVAL_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.JCACHE_PROVIDER_TYPE;
+import static com.hazelcast.spi.properties.ClusterProperty.MAX_JOIN_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.MAX_NO_HEARTBEAT_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.MERGE_FIRST_RUN_DELAY_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.MERGE_NEXT_RUN_DELAY_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.SOCKET_CONNECT_TIMEOUT_SECONDS;
+import static com.hazelcast.spi.properties.ClusterProperty.WAIT_SECONDS_BEFORE_JOIN;
 
 /**
  *
@@ -61,24 +63,31 @@ public class CacheTester {
         Config config = new Config();
 //        config.setProperty(WAIT_SECONDS_BEFORE_JOIN_ASYNC.getName(), Boolean.FALSE.toString());
         config.setProperty(MAX_NO_HEARTBEAT_SECONDS.getName(), "5");
+        config.setProperty(SOCKET_CONNECT_TIMEOUT_SECONDS.getName(), "5");
         config.setProperty(HEARTBEAT_INTERVAL_SECONDS.getName(), "1");
-        config.setProperty(MERGE_FIRST_RUN_DELAY_SECONDS.getName(), "5");
-        config.setProperty(MERGE_NEXT_RUN_DELAY_SECONDS.getName(), "5");
+        config.setProperty(MERGE_FIRST_RUN_DELAY_SECONDS.getName(), "15");
+        config.setProperty(MERGE_NEXT_RUN_DELAY_SECONDS.getName(), "15");
 
-        // change below to zero to demostrate https://github.com/hazelcast/hazelcast/issues/17586
         config.setProperty(WAIT_SECONDS_BEFORE_JOIN.getName(), "1");
         config.setProperty(MAX_JOIN_SECONDS.getName(), "5");
 
         config.getCPSubsystemConfig().addLockConfig(new FencedLockConfig("my/lock").disableReentrancy());
+        config.getCPSubsystemConfig().setSessionHeartbeatIntervalSeconds(1);
+        if (Boolean.getBoolean("hz.raft")) {
+            config.getCPSubsystemConfig()
+                    .setSessionTimeToLiveSeconds(5)
+                    .setGroupSize(Integer.getInteger("hz.group.size",3))
+                    .setCPMemberCount(Integer.getInteger("hz.member.count",3));
+        }
 
         NetworkConfig networkConfig = config.getNetworkConfig();
         networkConfig.getJoin().getMulticastConfig().setEnabled(false);
 
-        config.setProperty("hazelcast.discovery.enabled", "true");
+        config.setProperty(DISCOVERY_SPI_ENABLED.getName(), "true");
         networkConfig.getJoin().getDiscoveryConfig().setDiscoveryServiceProvider(MyDiscoveryService::new);
-//        networkConfig.setJoin(new JoinConfig().setTcpIpConfig(new TcpIpConfig().setEnabled(true)
-//                .addMember("127.0.0.1:5701").addMember("127.0.0.1:5702").addMember("127.0.0.1:5703").setConnectionTimeoutSeconds(1)));
-        config.getNetworkConfig().setPublicAddress("127.0.0.1").setPort(5710);
+        networkConfig.setPublicAddress("127.0.0.1")
+                .setPort(Integer.getInteger("hz.port", 5710))
+                .setPortAutoIncrement(false);
         return config;
     }
 

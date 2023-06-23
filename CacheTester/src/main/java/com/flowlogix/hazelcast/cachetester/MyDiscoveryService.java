@@ -33,6 +33,9 @@ public class MyDiscoveryService implements DiscoveryService {
             nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5710)));
             nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5711)));
             nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5712)));
+            nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5713)));
+            nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5714)));
+            nodes.add(new SimpleDiscoveryNode(new Address("127.0.0.1", 5715)));
         } catch (UnknownHostException ex) {
             throw new RuntimeException(ex);
         }

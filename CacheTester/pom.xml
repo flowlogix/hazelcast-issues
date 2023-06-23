@@ -8,6 +8,12 @@
     <properties>
         <maven.compiler.release>11</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <debug.args>-Xdebug</debug.args>
+        <debug.port>64093</debug.port>
+        <hz.port>5710</hz.port>
+        <hz.raft>true</hz.raft>
+        <hz.group.size>3</hz.group.size>
+        <hz.member.count>3</hz.member.count>
     </properties>
     <dependencies>
         <dependency>
@@ -18,7 +24,8 @@
         <dependency>
             <groupId>com.hazelcast</groupId>
             <artifactId>hazelcast</artifactId>
-            <version>5.3.0</version>
+            <version>5.3.1</version>
+<!--            <version>5.4.0-SNAPSHOT</version>-->
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -30,11 +37,16 @@
 
     <profiles>
         <profile>
+            <id>debug</id>
+            <properties>
+                <debug.args>-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${debug.port}</debug.args>
+            </properties>
+        </profile>
+        <profile>
             <id>run</id>
             <properties>
                 <maven.test.skip>true</maven.test.skip>
-                <maven.surefire.debug>test</maven.surefire.debug>
-                <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=64093</exec.args>
+                <maven.surefire.debug>true</maven.surefire.debug>
             </properties>
             <build>
                 <plugins>
@@ -46,11 +58,21 @@
                             <execution>
                                 <phase>test</phase>
                                 <goals>
-                                    <goal>java</goal>
+                                    <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <mainClass>com.flowlogix.hazelcast.cachetester.CacheTester</mainClass>
-                                    <cleanupDaemonThreads>false</cleanupDaemonThreads>
+                                    <executable>java</executable>
+                                    <longClasspath>true</longClasspath>
+                                    <arguments>
+                                        <argument>${debug.args}</argument>
+                                        <argument>-classpath</argument>
+                                        <classpath/>
+                                        <argument>com.flowlogix.hazelcast.cachetester.CacheTester</argument>
+                                        <argument>-Dhz.port=${hz.port}</argument>
+                                        <argument>-Dhz.raft=${hz.raft}</argument>
+                                        <argument>-Dhz.group.size=${hz.group.size}</argument>
+                                        <argument>-Dhz.member.count=${hz.member.count}</argument>
+                                    </arguments>
                                 </configuration>
                             </execution>
                         </executions>
