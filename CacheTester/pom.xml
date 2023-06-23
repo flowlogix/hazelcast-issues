@@ -14,6 +14,8 @@
         <hz.raft>true</hz.raft>
         <hz.group.size>3</hz.group.size>
         <hz.member.count>3</hz.member.count>
+        <hz.raft.leader.heartbeat>false</hz.raft.leader.heartbeat>
+        <hz.discovery.spi>true</hz.discovery.spi>
     </properties>
     <dependencies>
         <dependency>
@@ -65,10 +67,12 @@
                                     <longClasspath>true</longClasspath>
                                     <arguments>
                                         <argument>${debug.args}</argument>
+                                        <argument>-Dhz.discovery.spi=${hz.discovery.spi}</argument>
                                         <argument>-Dhz.port=${hz.port}</argument>
                                         <argument>-Dhz.raft=${hz.raft}</argument>
                                         <argument>-Dhz.group.size=${hz.group.size}</argument>
                                         <argument>-Dhz.member.count=${hz.member.count}</argument>
+                                        <argument>-Dhz.raft.leader.heartbea=${hz.raft.leader.heartbeat}</argument>
                                         <argument>-classpath</argument>
                                         <classpath/>
                                         <argument>com.flowlogix.hazelcast.cachetester.CacheTester</argument>

@@ -1,18 +1,3 @@
-/*
- * Copyright 2020 Hazelcast, Inc..
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.flowlogix.hazelcast.cachetester;
 
 import com.hazelcast.cache.HazelcastCachingProvider;
@@ -22,9 +7,13 @@ import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
+import com.hazelcast.spi.discovery.DiscoveryNode;
+import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.stream.StreamSupport;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 import javax.cache.CacheManager;
@@ -46,6 +35,7 @@ import static com.hazelcast.spi.properties.ClusterProperty.WAIT_SECONDS_BEFORE_J
  * @author lprimak
  */
 public class CacheTester {
+    static final int hzBasePort = Integer.getInteger("hz.base.port", 5710);
     private CacheManager cacheManager;
     private HazelcastInstance hzInst;
 
@@ -74,6 +64,11 @@ public class CacheTester {
         config.getCPSubsystemConfig().addLockConfig(new FencedLockConfig("my/lock").disableReentrancy());
         config.getCPSubsystemConfig().setSessionHeartbeatIntervalSeconds(1);
         if (Boolean.getBoolean("hz.raft")) {
+            if (Boolean.getBoolean("hz.raft.leader.heartbeat")) {
+                config.getCPSubsystemConfig()
+                        .getRaftAlgorithmConfig()
+                        .setLeaderHeartbeatPeriodInMillis(Duration.ofSeconds(1).toMillis());
+            }
             config.getCPSubsystemConfig()
                     .setSessionTimeToLiveSeconds(5)
                     .setMissingCPMemberAutoRemovalSeconds(10)
@@ -83,12 +78,23 @@ public class CacheTester {
 
         NetworkConfig networkConfig = config.getNetworkConfig();
         networkConfig.getJoin().getMulticastConfig().setEnabled(false);
+        networkConfig.setPublicAddress(InetAddress.getLoopbackAddress().getHostAddress())
+                .setPort(Integer.getInteger("hz.port", 5710)).setPortAutoIncrement(false);
 
-        config.setProperty(DISCOVERY_SPI_ENABLED.getName(), "true");
-        networkConfig.getJoin().getDiscoveryConfig().setDiscoveryServiceProvider(MyDiscoveryService::new);
-        networkConfig.setPublicAddress("127.0.0.1")
-                .setPort(Integer.getInteger("hz.port", 5710))
-                .setPortAutoIncrement(false);
+        if (Boolean.getBoolean("hz.discovery.spi")) {
+            config.setProperty(DISCOVERY_SPI_ENABLED.getName(), "true");
+            networkConfig.getJoin().getDiscoveryConfig().setDiscoveryServiceProvider(MyDiscoveryService::new);
+        } else {
+            var tcpIpConfig = networkConfig.getJoin().getTcpIpConfig();
+            tcpIpConfig.setEnabled(true);
+            var ds = new MyDiscoveryService(null);
+            ds.start();
+            StreamSupport.stream(ds.discoverNodes().spliterator(), false)
+                    .map(DiscoveryNode::getPrivateAddress)
+                    .forEach(address -> tcpIpConfig.addMember(String.format("%s:%d",
+                            address.getHost(), address.getPort())));
+            ds.destroy();
+        }
         return config;
     }
 
