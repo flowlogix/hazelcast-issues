@@ -75,8 +75,8 @@ public class CacheTester {
         config.getCPSubsystemConfig().setSessionHeartbeatIntervalSeconds(1);
         if (Boolean.getBoolean("hz.raft")) {
             config.getCPSubsystemConfig()
-                    .setSessionTimeToLiveSeconds(10)
-                    .setMissingCPMemberAutoRemovalSeconds(5)
+                    .setSessionTimeToLiveSeconds(5)
+                    .setMissingCPMemberAutoRemovalSeconds(10)
                     .setGroupSize(Integer.getInteger("hz.group.size",3))
                     .setCPMemberCount(Integer.getInteger("hz.member.count",3));
         }
