@@ -65,13 +65,13 @@
                                     <longClasspath>true</longClasspath>
                                     <arguments>
                                         <argument>${debug.args}</argument>
-                                        <argument>-classpath</argument>
-                                        <classpath/>
-                                        <argument>com.flowlogix.hazelcast.cachetester.CacheTester</argument>
                                         <argument>-Dhz.port=${hz.port}</argument>
                                         <argument>-Dhz.raft=${hz.raft}</argument>
                                         <argument>-Dhz.group.size=${hz.group.size}</argument>
                                         <argument>-Dhz.member.count=${hz.member.count}</argument>
+                                        <argument>-classpath</argument>
+                                        <classpath/>
+                                        <argument>com.flowlogix.hazelcast.cachetester.CacheTester</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
