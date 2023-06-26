@@ -108,14 +108,16 @@ public class CacheTester {
         System.setProperty(JCACHE_PROVIDER_TYPE.getName(), "server");
         var config = getConfig();
         hzInst = Hazelcast.newHazelcastInstance(config);
-        CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
-        if (managementService.isDiscoveryCompleted()) {
-            Executors.newSingleThreadExecutor().submit(() -> {
-                if (managementService.getCPMembers().toCompletableFuture()
-                        .join().size() < config.getCPSubsystemConfig().getCPMemberCount()) {
-                    managementService.promoteToCPMember();
-                }
-            });
+        if (!config.isLiteMember() && config.getCPSubsystemConfig().getCPMemberCount() > 0) {
+            CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
+            if (managementService.isDiscoveryCompleted()) {
+                Executors.newSingleThreadExecutor().submit(() -> {
+                    if (managementService.getCPMembers().toCompletableFuture()
+                            .join().size() < config.getCPSubsystemConfig().getCPMemberCount()) {
+                        managementService.promoteToCPMember();
+                    }
+                });
+            }
         }
         hzInst.getCPSubsystem().addGroupAvailabilityListener(new CPGroupAvailabilityListener() {
             @Override
