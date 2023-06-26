@@ -6,6 +6,10 @@ import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cp.event.CPGroupAvailabilityEvent;
+import com.hazelcast.cp.event.CPGroupAvailabilityListener;
+import com.hazelcast.cp.event.CPMembershipEvent;
+import com.hazelcast.cp.event.CPMembershipListener;
 import com.hazelcast.cp.lock.FencedLock;
 import com.hazelcast.spi.discovery.DiscoveryNode;
 import java.net.InetAddress;
@@ -101,6 +105,28 @@ public class CacheTester {
     private void setup() {
         System.setProperty(JCACHE_PROVIDER_TYPE.getName(), "server");
         hzInst = Hazelcast.newHazelcastInstance(getConfig());
+        hzInst.getCPSubsystem().addGroupAvailabilityListener(new CPGroupAvailabilityListener() {
+            @Override
+            public void availabilityDecreased(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
+                System.err.println("**** availabilityDecreased: " + cpGroupAvailabilityEvent);
+            }
+
+            @Override
+            public void majorityLost(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
+                System.err.println("**** majorityLost: " + cpGroupAvailabilityEvent);
+            }
+        });
+        hzInst.getCPSubsystem().addMembershipListener(new CPMembershipListener() {
+            @Override
+            public void memberAdded(CPMembershipEvent cpMembershipEvent) {
+                System.err.println("**** memberAdded: " + cpMembershipEvent);
+            }
+
+            @Override
+            public void memberRemoved(CPMembershipEvent cpMembershipEvent) {
+                System.err.println("**** memberRemoved: " + cpMembershipEvent);
+            }
+        });
         CachingProvider provider = Caching.getCachingProvider();
         cacheManager = provider.getCacheManager(null, null, HazelcastCachingProvider.propertiesByInstanceName(hzInst.getName()));
     }
