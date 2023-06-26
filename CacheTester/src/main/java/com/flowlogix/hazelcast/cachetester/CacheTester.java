@@ -6,6 +6,7 @@ import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cp.CPSubsystemManagementService;
 import com.hazelcast.cp.event.CPGroupAvailabilityEvent;
 import com.hazelcast.cp.event.CPGroupAvailabilityListener;
 import com.hazelcast.cp.event.CPMembershipEvent;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.concurrent.Executors;
 import java.util.stream.StreamSupport;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
@@ -75,7 +77,7 @@ public class CacheTester {
             }
             config.getCPSubsystemConfig()
                     .setSessionTimeToLiveSeconds(5)
-                    .setMissingCPMemberAutoRemovalSeconds(10)
+//                    .setMissingCPMemberAutoRemovalSeconds(10)
                     .setGroupSize(Integer.getInteger("hz.group.size",3))
                     .setCPMemberCount(Integer.getInteger("hz.member.count",3));
         }
@@ -104,7 +106,17 @@ public class CacheTester {
 
     private void setup() {
         System.setProperty(JCACHE_PROVIDER_TYPE.getName(), "server");
-        hzInst = Hazelcast.newHazelcastInstance(getConfig());
+        var config = getConfig();
+        hzInst = Hazelcast.newHazelcastInstance(config);
+        CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
+        if (managementService.isDiscoveryCompleted()) {
+            Executors.newSingleThreadExecutor().submit(() -> {
+                if (managementService.getCPMembers().toCompletableFuture()
+                        .join().size() < config.getCPSubsystemConfig().getCPMemberCount()) {
+                    managementService.promoteToCPMember();
+                }
+            });
+        }
         hzInst.getCPSubsystem().addGroupAvailabilityListener(new CPGroupAvailabilityListener() {
             @Override
             public void availabilityDecreased(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
