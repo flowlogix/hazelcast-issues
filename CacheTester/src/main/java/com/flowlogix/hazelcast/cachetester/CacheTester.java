@@ -1,6 +1,8 @@
 package com.flowlogix.hazelcast.cachetester;
 
 import com.hazelcast.cache.HazelcastCachingProvider;
+import com.hazelcast.cluster.Address;
+import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.cp.FencedLockConfig;
@@ -12,13 +14,20 @@ import com.hazelcast.cp.event.CPGroupAvailabilityListener;
 import com.hazelcast.cp.event.CPMembershipEvent;
 import com.hazelcast.cp.event.CPMembershipListener;
 import com.hazelcast.cp.lock.FencedLock;
+import com.hazelcast.map.IMap;
 import com.hazelcast.spi.discovery.DiscoveryNode;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
@@ -42,6 +51,7 @@ import static com.hazelcast.spi.properties.ClusterProperty.WAIT_SECONDS_BEFORE_J
  */
 public class CacheTester {
     static final int hzBasePort = Integer.getInteger("hz.base.port", 5710);
+    static final String availabilityMapName = "hz/test/cp/availmap";
     private CacheManager cacheManager;
     private HazelcastInstance hzInst;
 
@@ -57,6 +67,14 @@ public class CacheTester {
 
     private Config getConfig() {
         Config config = new Config();
+
+        if (Boolean.getBoolean("hz.logging")) {
+            Logger rootLogger = LogManager.getLogManager().getLogger("");
+            rootLogger.setLevel(Level.FINE);
+            for (Handler h : rootLogger.getHandlers()) {
+                h.setLevel(Level.FINE);
+            }
+        }
 //        config.setProperty(WAIT_SECONDS_BEFORE_JOIN_ASYNC.getName(), Boolean.FALSE.toString());
         config.setProperty(MAX_NO_HEARTBEAT_SECONDS.getName(), "5");
         config.setProperty(SOCKET_CONNECT_TIMEOUT_SECONDS.getName(), "5");
@@ -112,9 +130,28 @@ public class CacheTester {
             CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
             if (managementService.isDiscoveryCompleted()) {
                 Executors.newSingleThreadExecutor().submit(() -> {
-                    if (managementService.getCPMembers().toCompletableFuture()
-                            .join().size() < config.getCPSubsystemConfig().getCPMemberCount()) {
-                        managementService.promoteToCPMember();
+                    try {
+                        int maxJoinWait = Integer.parseInt(config.getProperty(MAX_JOIN_SECONDS.getName())) * 10 + 10;
+                        for (int ii = 0; ii < maxJoinWait; ++ii) {
+                            if (hzInst.getCluster().getClusterState() == ClusterState.ACTIVE) {
+                                break;
+                            }
+                            TimeUnit.MILLISECONDS.sleep(100);
+                        }
+                        var localMember = hzInst.getCluster().getLocalMember();
+                        IMap<Address, UUID> map = hzInst.getMap(availabilityMapName);
+                        UUID uuid = map.get(localMember.getAddress());
+                        if (uuid != null || managementService.getCPMembers().toCompletableFuture().join()
+                                .size() < config.getCPSubsystemConfig().getCPMemberCount()) {
+                            if (uuid != null) {
+                                managementService.removeCPMember(uuid).toCompletableFuture().join();
+                                map.remove(localMember.getAddress());
+                            }
+                            System.out.println("Promoting to CP Member");
+                            managementService.promoteToCPMember();
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
                     }
                 });
             }
@@ -123,6 +160,12 @@ public class CacheTester {
             @Override
             public void availabilityDecreased(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
                 System.err.println("**** availabilityDecreased: " + cpGroupAvailabilityEvent);
+                if (cpGroupAvailabilityEvent.isMetadataGroup()) {
+                    var map = hzInst.getMap(availabilityMapName);
+                    cpGroupAvailabilityEvent.getUnavailableMembers().forEach(member -> {
+                        map.put(member.getAddress(), member.getUuid());
+                    });
+                }
             }
 
             @Override
@@ -134,6 +177,7 @@ public class CacheTester {
             @Override
             public void memberAdded(CPMembershipEvent cpMembershipEvent) {
                 System.err.println("**** memberAdded: " + cpMembershipEvent);
+                hzInst.getMap(availabilityMapName).remove(cpMembershipEvent.getMember().getAddress());
             }
 
             @Override
