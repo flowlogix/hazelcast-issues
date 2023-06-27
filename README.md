@@ -2,7 +2,7 @@
 Tests Hz issues
 
 ## Cache Tester
-By default, it connects to clients on ports 5710-5730
+By default, it connects to members on ports 5710-5730
 
 To run from Maven: `mvn -Prun test` (default port, 5710)
 
