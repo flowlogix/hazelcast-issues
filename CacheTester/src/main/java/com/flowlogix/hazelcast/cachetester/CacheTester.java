@@ -126,7 +126,8 @@ public class CacheTester {
         System.setProperty(JCACHE_PROVIDER_TYPE.getName(), "server");
         var config = getConfig();
         hzInst = Hazelcast.newHazelcastInstance(config);
-        if (!config.isLiteMember() && config.getCPSubsystemConfig().getCPMemberCount() > 0) {
+        if (!config.isLiteMember() && config.getCPSubsystemConfig().getCPMemberCount() > 0
+                && Boolean.parseBoolean(System.getProperty("hz.autoupgrade", "true"))) {
             CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
             if (managementService.isDiscoveryCompleted()) {
                 Executors.newSingleThreadExecutor().submit(() -> {

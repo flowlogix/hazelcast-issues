@@ -12,6 +12,7 @@
         <debug.port>64093</debug.port>
         <hz.port>5710</hz.port>
         <hz.raft>true</hz.raft>
+        <hz.autoupgrade>true</hz.autoupgrade>
         <hz.group.size>3</hz.group.size>
         <hz.member.count>3</hz.member.count>
         <hz.raft.leader.heartbeat>false</hz.raft.leader.heartbeat>
@@ -71,6 +72,7 @@
                                         <argument>-Dhz.discovery.spi=${hz.discovery.spi}</argument>
                                         <argument>-Dhz.port=${hz.port}</argument>
                                         <argument>-Dhz.raft=${hz.raft}</argument>
+                                        <argument>-Dhz.autoupgrade=${hz.autoupgrade}</argument>
                                         <argument>-Dhz.group.size=${hz.group.size}</argument>
                                         <argument>-Dhz.member.count=${hz.member.count}</argument>
                                         <argument>-Dhz.raft.leader.heartbeat=${hz.raft.leader.heartbeat}</argument>
