@@ -114,7 +114,8 @@ public class CacheTester {
         NetworkConfig networkConfig = config.getNetworkConfig();
         networkConfig.getJoin().getMulticastConfig().setEnabled(false);
         networkConfig.setPublicAddress(InetAddress.getLoopbackAddress().getHostAddress())
-                .setPort(Integer.getInteger("hz.port", 5710)).setPortAutoIncrement(false);
+                .setPort(Integer.getInteger("hz.port", 5710))
+                .setPortAutoIncrement(Boolean.getBoolean("hz.port.increment"));
 
         if (Boolean.getBoolean("hz.discovery.spi")) {
             config.setProperty(DISCOVERY_SPI_ENABLED.getName(), "true");
@@ -138,7 +139,7 @@ public class CacheTester {
         var config = getConfig();
         hzInst = Hazelcast.newHazelcastInstance(config);
         if (!config.isLiteMember() && config.getCPSubsystemConfig().getCPMemberCount() > 0
-                && Boolean.parseBoolean(System.getProperty("hz.autoupgrade", "true"))) {
+                && Boolean.parseBoolean("hz.autoupgrade")) {
             CPSubsystemManagementService managementService = hzInst.getCPSubsystem().getCPSubsystemManagementService();
             if (managementService.isDiscoveryCompleted()) {
                 Executors.newSingleThreadExecutor().submit(() -> {

@@ -11,6 +11,7 @@
         <debug.args>-Xdebug</debug.args>
         <debug.port>64093</debug.port>
         <hz.port>5710</hz.port>
+        <hz.port.increment>true</hz.port.increment>
         <hz.raft>true</hz.raft>
         <hz.autoupgrade>true</hz.autoupgrade>
         <hz.group.size>3</hz.group.size>
@@ -71,6 +72,7 @@
                                         <argument>${debug.args}</argument>
                                         <argument>-Dhz.discovery.spi=${hz.discovery.spi}</argument>
                                         <argument>-Dhz.port=${hz.port}</argument>
+                                        <argument>-Dhz.port.increment=${hz.port.increment}</argument>
                                         <argument>-Dhz.raft=${hz.raft}</argument>
                                         <argument>-Dhz.autoupgrade=${hz.autoupgrade}</argument>
                                         <argument>-Dhz.group.size=${hz.group.size}</argument>
