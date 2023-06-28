@@ -3,11 +3,14 @@ package com.flowlogix.hazelcast.cachetester;
 import com.hazelcast.cache.HazelcastCachingProvider;
 import com.hazelcast.cluster.Address;
 import com.hazelcast.cluster.ClusterState;
+import com.hazelcast.cluster.Member;
+import com.hazelcast.collection.ISet;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.cp.CPSubsystemManagementService;
 import com.hazelcast.cp.event.CPGroupAvailabilityEvent;
 import com.hazelcast.cp.event.CPGroupAvailabilityListener;
@@ -16,14 +19,20 @@ import com.hazelcast.cp.event.CPMembershipListener;
 import com.hazelcast.cp.lock.FencedLock;
 import com.hazelcast.map.IMap;
 import com.hazelcast.spi.discovery.DiscoveryNode;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
@@ -35,6 +44,7 @@ import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.spi.CachingProvider;
+import static com.hazelcast.cp.CPGroup.METADATA_CP_GROUP_NAME;
 import static com.hazelcast.spi.properties.ClusterProperty.DISCOVERY_SPI_ENABLED;
 import static com.hazelcast.spi.properties.ClusterProperty.HEARTBEAT_INTERVAL_SECONDS;
 import static com.hazelcast.spi.properties.ClusterProperty.JCACHE_PROVIDER_TYPE;
@@ -51,9 +61,10 @@ import static com.hazelcast.spi.properties.ClusterProperty.WAIT_SECONDS_BEFORE_J
  */
 public class CacheTester {
     static final int hzBasePort = Integer.getInteger("hz.base.port", 5710);
-    static final String availabilityMapName = "hz/test/cp/availmap";
+    static final String availabilityStructureName = "hz/test/cp/availmap";
     private CacheManager cacheManager;
-    private HazelcastInstance hzInst;
+    private static HazelcastInstance hzInst;
+    private static final Lock resetLock = new ReentrantLock();
 
     public static void main(String[] args) {
         CacheTester tester = new CacheTester();
@@ -139,18 +150,47 @@ public class CacheTester {
                             }
                             TimeUnit.MILLISECONDS.sleep(100);
                         }
+                        ISet<Member> cpMembersToReset = hzInst.getSet(availabilityStructureName);
+                        if (!cpMembersToReset.isEmpty()) {
+                            System.err.println("**** Client: CP Reset schedule is detected ...");
+                            var fn = (Serializable & Runnable) () -> {
+                                resetLock.lock();
+                                try {
+                                    try {
+                                        hzInst.getCPSubsystem().getCPSubsystemManagementService()
+                                                .getCPGroup(METADATA_CP_GROUP_NAME).toCompletableFuture().get(1, TimeUnit.SECONDS);
+                                        System.err.println("Not performing CP Reset: Metadata is healthy");
+                                    } catch (CompletionException | InterruptedException | ExecutionException |
+                                             TimeoutException e) {
+                                        System.err.println("Performing CP Reset ...");
+                                        hzInst.getCPSubsystem().getCPSubsystemManagementService().reset().toCompletableFuture().join();
+                                    }
+                                    hzInst.getSet(availabilityStructureName).clear();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                                finally {
+                                    resetLock.unlock();
+                                }
+                            };
+                            hzInst.getExecutorService(availabilityStructureName).executeOnMembers(fn, cpMembersToReset);
+                        }
                         var localMember = hzInst.getCluster().getLocalMember();
-                        IMap<Address, UUID> map = hzInst.getMap(availabilityMapName);
+                        IMap<Address, UUID> map = hzInst.getMap(availabilityStructureName);
                         UUID uuid = map.get(localMember.getAddress());
                         if (uuid != null || managementService.getCPMembers().toCompletableFuture().join()
                                 .size() < config.getCPSubsystemConfig().getCPMemberCount()) {
                             if (uuid != null) {
-                                managementService.removeCPMember(uuid).toCompletableFuture().join();
+                                try {
+                                    managementService.removeCPMember(uuid).toCompletableFuture().join();
+                                } catch (CompletionException e) {
+                                }
                                 map.remove(localMember.getAddress());
                             }
                             System.out.println("Promoting to CP Member");
                             managementService.promoteToCPMember();
                         }
+                    } catch (HazelcastInstanceNotActiveException e) {
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
@@ -162,7 +202,7 @@ public class CacheTester {
             public void availabilityDecreased(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
                 System.err.println("**** availabilityDecreased: " + cpGroupAvailabilityEvent);
                 if (cpGroupAvailabilityEvent.isMetadataGroup()) {
-                    var map = hzInst.getMap(availabilityMapName);
+                    var map = hzInst.getMap(availabilityStructureName);
                     cpGroupAvailabilityEvent.getUnavailableMembers().forEach(member -> {
                         map.put(member.getAddress(), member.getUuid());
                     });
@@ -172,18 +212,34 @@ public class CacheTester {
             @Override
             public void majorityLost(CPGroupAvailabilityEvent cpGroupAvailabilityEvent) {
                 System.err.println("**** majorityLost: " + cpGroupAvailabilityEvent);
+                if (cpGroupAvailabilityEvent.isMetadataGroup()) {
+                    hzInst.getSet(availabilityStructureName).add(hzInst.getCluster().getLocalMember());
+                    System.err.println("**** Scheduled CP Reset (majorityLost) ***");
+                }
             }
         });
         hzInst.getCPSubsystem().addMembershipListener(new CPMembershipListener() {
             @Override
             public void memberAdded(CPMembershipEvent cpMembershipEvent) {
                 System.err.println("**** memberAdded: " + cpMembershipEvent);
-                hzInst.getMap(availabilityMapName).remove(cpMembershipEvent.getMember().getAddress());
+                hzInst.getMap(availabilityStructureName).remove(cpMembershipEvent.getMember().getAddress());
             }
 
             @Override
             public void memberRemoved(CPMembershipEvent cpMembershipEvent) {
                 System.err.println("**** memberRemoved: " + cpMembershipEvent);
+                try {
+                    if (!cpMembershipEvent.getMember().equals(hzInst.getCPSubsystem()
+                            .getCPSubsystemManagementService().getLocalCPMember())) {
+                        hzInst.getCPSubsystem().getCPSubsystemManagementService()
+                                .getCPGroup(METADATA_CP_GROUP_NAME).toCompletableFuture().get(1, TimeUnit.SECONDS);
+                    }
+                } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
+                    if (e.getCause() instanceof IllegalStateException) {
+                        hzInst.getSet(availabilityStructureName).add(hzInst.getCluster().getLocalMember());
+                        System.err.println("**** Scheduled CP Reset ***");
+                    }
+                }
             }
         });
         CachingProvider provider = Caching.getCachingProvider();
