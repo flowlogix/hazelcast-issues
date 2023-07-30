@@ -18,19 +18,20 @@
         <hz.member.count>3</hz.member.count>
         <hz.raft.leader.heartbeat>false</hz.raft.leader.heartbeat>
         <hz.discovery.spi>true</hz.discovery.spi>
+        <hz.partitions>false</hz.partitions>
         <hz.logging>false</hz.logging>
     </properties>
     <dependencies>
         <dependency>
-            <groupId>javax.cache</groupId>
-            <artifactId>cache-api</artifactId>
-            <version>1.1.1</version>
-        </dependency>
-        <dependency>
             <groupId>com.hazelcast</groupId>
             <artifactId>hazelcast</artifactId>
             <version>5.3.1</version>
-<!--            <version>5.4.0-SNAPSHOT</version>-->
+            <!--            <version>5.4.0-SNAPSHOT</version>-->
+        </dependency>
+        <dependency>
+            <groupId>javax.cache</groupId>
+            <artifactId>cache-api</artifactId>
+            <version>1.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
