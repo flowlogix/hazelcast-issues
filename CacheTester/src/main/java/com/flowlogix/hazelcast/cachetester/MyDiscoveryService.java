@@ -9,7 +9,6 @@ import com.hazelcast.cluster.Address;
 import com.hazelcast.spi.discovery.DiscoveryNode;
 import com.hazelcast.spi.discovery.SimpleDiscoveryNode;
 import com.hazelcast.spi.discovery.integration.DiscoveryService;
-import com.hazelcast.spi.discovery.integration.DiscoveryServiceSettings;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,9 +24,6 @@ import static com.flowlogix.hazelcast.cachetester.CacheTester.hzBasePort;
  */
 public class MyDiscoveryService implements DiscoveryService {
     private final List<DiscoveryNode> nodes = new ArrayList<>();
-
-    public MyDiscoveryService(DiscoveryServiceSettings settings) {
-    }
 
     @Override
     public void start() {

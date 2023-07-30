@@ -6,7 +6,9 @@ import com.hazelcast.cluster.ClusterState;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.collection.ISet;
 import com.hazelcast.config.Config;
+import com.hazelcast.config.DiscoveryStrategyConfig;
 import com.hazelcast.config.NetworkConfig;
+import com.hazelcast.config.PartitionGroupConfig;
 import com.hazelcast.config.cp.FencedLockConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
@@ -119,11 +121,15 @@ public class CacheTester {
 
         if (Boolean.getBoolean("hz.discovery.spi")) {
             config.setProperty(DISCOVERY_SPI_ENABLED.getName(), "true");
-            networkConfig.getJoin().getDiscoveryConfig().setDiscoveryServiceProvider(MyDiscoveryService::new);
+            config.getNetworkConfig().getJoin().getDiscoveryConfig().addDiscoveryStrategyConfig(
+                    new DiscoveryStrategyConfig(MyDiscoveryStrategy.class.getName()));
+            PartitionGroupConfig partitionGroupConfig = config.getPartitionGroupConfig();
+            partitionGroupConfig.setEnabled(true);
+            partitionGroupConfig.setGroupType(PartitionGroupConfig.MemberGroupType.SPI);
         } else {
             var tcpIpConfig = networkConfig.getJoin().getTcpIpConfig();
             tcpIpConfig.setEnabled(true);
-            var ds = new MyDiscoveryService(null);
+            var ds = new MyDiscoveryService();
             ds.start();
             StreamSupport.stream(ds.discoverNodes().spliterator(), false)
                     .map(DiscoveryNode::getPrivateAddress)
