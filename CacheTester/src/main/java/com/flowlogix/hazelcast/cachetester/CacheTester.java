@@ -254,6 +254,11 @@ public class CacheTester {
                     System.err.println("**** memberAdded: " + cpMembershipEvent);
                 }
 
+                /**
+                 * @deprecated can be removed when Hz 5.4.0 is released since majorityLost is reliable then
+                 *
+                 * @param cpMembershipEvent
+                 */
                 @Override
                 public void memberRemoved(CPMembershipEvent cpMembershipEvent) {
                     System.err.println("**** memberRemoved: " + cpMembershipEvent);
