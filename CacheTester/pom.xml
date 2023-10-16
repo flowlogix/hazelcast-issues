@@ -18,6 +18,7 @@
         <hz.member.count>3</hz.member.count>
         <hz.raft.leader.heartbeat>false</hz.raft.leader.heartbeat>
         <hz.discovery.spi>true</hz.discovery.spi>
+        <hz.discovery.multicast>false</hz.discovery.multicast>
         <hz.partitions>false</hz.partitions>
         <hz.logging>false</hz.logging>
     </properties>
@@ -72,6 +73,7 @@
                                     <arguments>
                                         <argument>${debug.args}</argument>
                                         <argument>-Dhz.discovery.spi=${hz.discovery.spi}</argument>
+                                        <argument>-Dhz.discovery.multicast=${hz.discovery.multicast}</argument>
                                         <argument>-Dhz.port=${hz.port}</argument>
                                         <argument>-Dhz.port.increment=${hz.port.increment}</argument>
                                         <argument>-Dhz.raft=${hz.raft}</argument>

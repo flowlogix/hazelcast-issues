@@ -113,7 +113,9 @@ public class CacheTester {
                 .setPort(Integer.getInteger("hz.port", 5710))
                 .setPortAutoIncrement(Boolean.getBoolean("hz.port.increment"));
 
-        if (Boolean.getBoolean("hz.discovery.spi")) {
+        if (Boolean.getBoolean("hz.discovery.multicast")) {
+            networkConfig.getJoin().getMulticastConfig().setEnabled(true);
+        } else if (Boolean.getBoolean("hz.discovery.spi")) {
             config.setProperty(ClusterProperty.DISCOVERY_SPI_ENABLED.getName(), "true");
             config.getNetworkConfig().getJoin().getDiscoveryConfig().addDiscoveryStrategyConfig(
                     new DiscoveryStrategyConfig(MyDiscoveryStrategy.class.getName()));
